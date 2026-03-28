@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "126265986939",
+    "project_id": "recoverai-af95c",
+    "storage_bucket": "recoverai-af95c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:126265986939:android:459ae759ae1054ce0037de",
+        "android_client_info": {
+          "package_name": "com.recoverai.recover_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNnXfBDIpmWZqGMVllFZ5v_6GlgNnLWF8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
