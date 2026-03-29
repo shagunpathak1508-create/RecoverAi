@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import '../widgets/logo_widget.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -15,16 +16,16 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ── Logo / Icon ───────────────────────────────────────────
+                // ── Custom Logo ───────────────────────────────────────────
                 Container(
-                  width: 110,
-                  height: 110,
+                  width: 130,
+                  height: 130,
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.favorite_rounded,
-                      size: 64, color: Colors.white),
+                  padding: const EdgeInsets.all(12),
+                  child: const LogoWidget(size: 100),
                 ),
                 const SizedBox(height: 24),
 

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme.dart';
 import '../widgets/section_card.dart';
+import '../widgets/logo_widget.dart';
+import '../widgets/recovery_graph_widget.dart';
+import '../widgets/relapse_risk_widget.dart';
+import '../widgets/calendar_widget.dart';
 import '../mock_data.dart';
 import 'live_patients_screen.dart';
 
@@ -14,13 +18,11 @@ class DoctorDashboard extends StatefulWidget {
 
 class _DoctorDashboardState extends State<DoctorDashboard> {
   String _selectedPatientId = 'p1';
-  bool _followupSent = false;
 
   void _onPatientChanged(String? patientId) {
     if (patientId == null) return;
     setState(() {
       _selectedPatientId = patientId;
-      _followupSent = false;
     });
   }
 
@@ -28,7 +30,14 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Doctor Dashboard'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const LogoWidget(size: 32),
+            const SizedBox(width: 10),
+            const Text('Doctor Dashboard'),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
@@ -88,26 +97,18 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           // ── Patient Summary Card (Mock) ─────────────────────────────
           _PatientSummaryMock(patientId: _selectedPatientId),
 
-          // ── Recovery Trend Graph (Actual vs Expected) ────────────────
-          _RecoveryTrendMock(patientId: _selectedPatientId),
+          // ── Recovery Analysis Graph (AI-Based — Actual vs Ideal) ─────
+          RecoveryGraphWidget(patientId: _selectedPatientId),
+
+          // ── Risk of Relapse Analysis ──────────────────────────────────
+          RelapseRiskWidget(patientId: _selectedPatientId),
 
           // ── Critical Alerts (Tasks & Symptoms Mock) ───────────────
           _AlertsMock(patientId: _selectedPatientId),
 
-          // ── Follow-Up Action ─────────────────────────────────────────
-          const SizedBox(height: 4),
-          SizedBox(
-            height: 62,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _followupSent ? kSuccess : const Color(0xFF283593),
-                foregroundColor: Colors.white,
-              ),
-              icon: Icon(_followupSent ? Icons.check_circle_outline_rounded : Icons.calendar_today_rounded, size: 26),
-              label: Text(_followupSent ? 'Follow-up Suggested!' : 'Suggest Follow-up', style: const TextStyle(fontSize: 20)),
-              onPressed: () => setState(() => _followupSent = true),
-            ),
-          ),
+          // ── Follow-Up Calendar ────────────────────────────────────────
+          const CalendarWidget(),
+
           const SizedBox(height: 12),
 
           // ── Live Patients Navigator ──────────────────────────────────
@@ -126,7 +127,117 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           const SizedBox(height: 16),
         ],
       ),
+      // ── Firestore Test FAB ──────────────────────────────────────────
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Upload Dummy Data button
+          FloatingActionButton.small(
+            heroTag: 'upload_dummy',
+            backgroundColor: kAccent,
+            onPressed: () => _uploadDummyData(context),
+            tooltip: 'Upload Dummy Data to Firestore',
+            child: const Icon(Icons.cloud_upload_rounded, color: Colors.white),
+          ),
+          const SizedBox(height: 10),
+          // Test Firestore Write button
+          FloatingActionButton(
+            heroTag: 'test_firestore',
+            backgroundColor: const Color(0xFF283593),
+            onPressed: () => _testFirestoreWrite(context),
+            tooltip: 'Test Firestore Connection',
+            child: const Icon(Icons.science_rounded, color: Colors.white),
+          ),
+        ],
+      ),
     );
+  }
+
+  // ── Firestore Test Write ───────────────────────────────────────────
+  Future<void> _testFirestoreWrite(BuildContext context) async {
+    try {
+      await FirebaseFirestore.instance.collection('test').add({
+        'msg': 'hello from RecoverAI',
+        'timestamp': FieldValue.serverTimestamp(),
+        'source': 'doctor_dashboard',
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Firestore write successful!'),
+            backgroundColor: kSuccess,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Firestore write error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Firestore error: $e'),
+            backgroundColor: kError,
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Upload All Mock Data to Firestore ───────────────────────────────
+  Future<void> _uploadDummyData(BuildContext context) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      // Upload patients
+      for (var patient in MockData.patients) {
+        await firestore
+            .collection('patients')
+            .doc(patient['patient_id'])
+            .set(patient);
+      }
+
+      // Upload tasks
+      for (var task in MockData.tasks) {
+        await firestore
+            .collection('tasks')
+            .doc(task['task_id'])
+            .set(task);
+      }
+
+      // Upload symptoms
+      for (int i = 0; i < MockData.symptoms.length; i++) {
+        await firestore
+            .collection('symptoms')
+            .doc('s$i')
+            .set(MockData.symptoms[i]);
+      }
+
+      // Upload recovery logs
+      for (int i = 0; i < MockData.recoveryLogs.length; i++) {
+        await firestore
+            .collection('recovery_logs')
+            .doc('r$i')
+            .set(MockData.recoveryLogs[i]);
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ All dummy data uploaded to Firestore!'),
+            backgroundColor: kSuccess,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Dummy data upload error: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Upload error: $e'),
+            backgroundColor: kError,
+          ),
+        );
+      }
+    }
   }
 }
 
@@ -170,69 +281,6 @@ class _PatientSummaryMock extends StatelessWidget {
           ],
         )),
       ],
-    );
-  }
-}
-
-// ── 2: Expected vs Actual Recovery Timeline (Mock Graph)
-class _RecoveryTrendMock extends StatelessWidget {
-  final String patientId;
-  const _RecoveryTrendMock({required this.patientId});
-
-  @override
-  Widget build(BuildContext context) {
-    final patientData = MockData.getPatient(patientId);
-    if (patientData == null || patientData.isEmpty) return const SizedBox.shrink();
-
-    final int expectedDays = (patientData['expected_recovery_days'] as num?)?.toInt() ?? 30;
-    final logs = MockData.getRecoveryLogsByPatient(patientId);
-
-    List<FlSpot> actualSpots = logs.map((data) {
-      return FlSpot((data['day_number'] as num).toDouble(), (data['recovery_score'] as num).toDouble());
-    }).toList();
-
-    // Expected Trace: Linear line from (0,0) to (expectedDays, 100)
-    List<FlSpot> expectedSpots = [
-      const FlSpot(0, 0),
-      FlSpot(expectedDays.toDouble(), 100),
-    ];
-
-    return SectionCard(
-      title: 'Recovery Timeline (Actual vs Exp.)',
-      icon: Icons.auto_graph_rounded,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Solid: Actual Progress  •  Dashed: Expected Path', style: TextStyle(fontSize: 13, color: kTextSecondary)),
-          const SizedBox(height: 30),
-          SizedBox(
-            height: 220,
-            child: LineChart(
-              LineChartData(
-                minX: 0, maxX: expectedDays.toDouble(),
-                minY: 0, maxY: 100,
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 10, getTitlesWidget: (v, m) => Text('D${v.toInt()}', style: const TextStyle(fontSize: 10)))),
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 25, getTitlesWidget: (v, m) => Text('${v.toInt()}%', style: const TextStyle(fontSize: 10)))),
-                ),
-                gridData: const FlGridData(show: true, drawVerticalLine: false),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: actualSpots, isCurved: true, color: kPrimary, barWidth: 4, 
-                    belowBarData: BarAreaData(show: true, color: kPrimary.withOpacity(0.1)),
-                  ),
-                  LineChartBarData(
-                    spots: expectedSpots, isCurved: false, color: Colors.grey, barWidth: 2, dashArray: [5, 5], dotData: const FlDotData(show: false),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
