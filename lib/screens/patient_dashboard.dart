@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/section_card.dart';
+import '../mock_data.dart';
 
-// ── Static dummy data ─────────────────────────────────────────────────────────
-const _patientName = 'John';
-final _medicines = ['Metformin 500mg', 'Lisinopril 10mg', 'Vitamin D3'];
-const _exercises = ['15-min Morning Walk'];
-const _diet = 'Low-sodium diet. Avoid fried foods. Drink 8 glasses of water.';
-final _reminders = [
-  _Reminder(time: '8:00 AM', text: 'Morning medicines', icon: Icons.medication_rounded),
-  _Reminder(time: '1:00 PM', text: 'Lunch & afternoon walk', icon: Icons.directions_walk_rounded),
-  _Reminder(time: '8:00 PM', text: 'Evening medicines', icon: Icons.medication_rounded),
-  _Reminder(time: '9:00 PM', text: 'Log symptoms before bed', icon: Icons.edit_note_rounded),
-];
+// ── Dummy Patient Models (Simulation Only) ──────────────────────────────────
+class DummyPatient {
+  final String id;
+  final String name;
+  final String condition;
+  const DummyPatient({required this.id, required this.name, required this.condition});
 
-class _Reminder {
-  final String time, text;
-  final IconData icon;
-  const _Reminder({required this.time, required this.text, required this.icon});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is DummyPatient && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+const List<DummyPatient> _dummyPatients = [
+  DummyPatient(id: 'p1', name: 'John Smith (Knee Recovery)', condition: 'knee_recovery'),
+  DummyPatient(id: 'p2', name: 'Alice Johnson (Fever)', condition: 'fever'),
+  DummyPatient(id: 'p3', name: 'Robert Davis (Heart)', condition: 'heart'),
+];
+
+const Map<String, List<String>> _conditionSymptoms = {
+  'knee_recovery': ['Knee Pain', 'Difficulty Walking', 'Swelling'],
+  'fever': ['High Temperature', 'Headache', 'Fatigue'],
+  'heart': ['Chest Pain', 'Shortness of Breath', 'Dizziness'],
+};
+
 class PatientDashboard extends StatefulWidget {
   const PatientDashboard({super.key});
 
@@ -29,13 +38,65 @@ class PatientDashboard extends StatefulWidget {
 }
 
 class _PatientDashboardState extends State<PatientDashboard> {
-  final List<bool> _medChecks = List.filled(_medicines.length, false);
-  bool _exerciseDone = false;
-  double _painLevel = 3;
-  bool _saved = false;
+  late DummyPatient _currentPatient;
+  final Set<String> _selectedSymptoms = {};
+  final Map<String, double> _symptomSeverities = {};
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPatient = _dummyPatients[0];
+  }
+
+  void _onPatientChanged(DummyPatient? patient) {
+    if (patient == null) return;
+    setState(() {
+      _currentPatient = patient;
+      _selectedSymptoms.clear();
+      _symptomSeverities.clear();
+    });
+  }
+
+  void _toggleSymptom(String symptom, bool? isSelected) {
+    setState(() {
+      if (isSelected == true) {
+        _selectedSymptoms.add(symptom);
+        _symptomSeverities[symptom] = 0;
+      } else {
+        _selectedSymptoms.remove(symptom);
+        _symptomSeverities.remove(symptom);
+      }
+    });
+  }
+
+  Future<void> _submitSymptoms() async {
+    if (_selectedSymptoms.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one symptom.')));
+      return;
+    }
+    setState(() => _isSaving = true);
+    await Future.delayed(const Duration(milliseconds: 500)); // Simulate network
+    
+    // In Mock mode, we just add to our local static list
+    MockData.symptoms.add({
+      'patient_id': _currentPatient.id,
+      'condition': _currentPatient.condition,
+      'selected_symptoms': _selectedSymptoms.toList(),
+      'severity_map': Map<String, double>.from(_symptomSeverities),
+      'date': DateTime.now().toIso8601String().split('T')[0],
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Symptoms logged (Local)!'), backgroundColor: kSuccess));
+      setState(() { _selectedSymptoms.clear(); _symptomSeverities.clear(); _isSaving = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final availableSymptoms = _conditionSymptoms[_currentPatient.condition] ?? [];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Patient Dashboard'),
@@ -43,203 +104,168 @@ class _PatientDashboardState extends State<PatientDashboard> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: CircleAvatar(
-              backgroundColor: Colors.white24,
-              child: Text(
-                _patientName[0],
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-              ),
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          // ── Greeting ───────────────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [kPrimary, kPrimaryLight]),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Hello, $_patientName 👋',
-                    style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 4),
-                const Text("Let's have a great recovery day!",
-                    style: TextStyle(fontSize: 16, color: Color(0xFFBBDEFB))),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
+          // ── Simulation Toggle ──────────────────────────────────────────
+          _buildSimulationDropdown(),
+          const SizedBox(height: 16),
 
-          // ── Medicines ──────────────────────────────────────────────────
-          SectionCard(
-            title: "Today's Medicines",
-            icon: Icons.medication_liquid_rounded,
-            child: Column(
-              children: List.generate(_medicines.length, (i) {
-                return CheckboxListTile(
-                  title: Text(_medicines[i],
-                      style: const TextStyle(fontSize: 18)),
-                  value: _medChecks[i],
-                  onChanged: (v) => setState(() => _medChecks[i] = v!),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                  activeColor: kAccent,
-                );
-              }),
-            ),
-          ),
+          // ── Greeting Card ─────────────────────────────────────────────
+          _buildGreetingCard(),
+          const SizedBox(height: 14),
 
-          // ── Exercise ───────────────────────────────────────────────────
-          SectionCard(
-            title: "Today's Exercise",
-            icon: Icons.directions_run_rounded,
-            iconColor: kAccent,
-            child: CheckboxListTile(
-              title: Text(_exercises[0],
-                  style: const TextStyle(fontSize: 18)),
-              value: _exerciseDone,
-              onChanged: (v) => setState(() => _exerciseDone = v!),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              activeColor: kAccent,
-            ),
-          ),
+          // ── 1. Dynamic Task List (Mock Sync) ─────────────────────
+          _TasksListMock(patientId: _currentPatient.id),
 
-          // ── Diet ───────────────────────────────────────────────────────
+          // ── 2. Symptom Logger ──────────────────────────────────────────
           SectionCard(
-            title: "Today's Diet",
-            icon: Icons.restaurant_rounded,
-            iconColor: kWarning,
-            child: Text(_diet,
-                style: const TextStyle(
-                    fontSize: 17, height: 1.5, color: kTextPrimary)),
-          ),
-
-          // ── Symptom Logger ─────────────────────────────────────────────
-          SectionCard(
-            title: 'Symptom Logger',
+            title: 'Daily Symptom Logger',
             icon: Icons.monitor_heart_rounded,
             iconColor: kError,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Pain Level',
-                    style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600)),
-                Row(
-                  children: [
-                    const Text('1', style: TextStyle(fontSize: 16)),
-                    Expanded(
-                      child: Slider(
-                        min: 1,
-                        max: 10,
-                        divisions: 9,
-                        value: _painLevel,
-                        label: _painLevel.toStringAsFixed(0),
-                        onChanged: (v) =>
-                            setState(() {
-                              _painLevel = v;
-                              _saved = false;
-                            }),
-                      ),
-                    ),
-                    const Text('10', style: TextStyle(fontSize: 16)),
-                  ],
-                ),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _painLevelColor(_painLevel).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Level: ${_painLevel.toStringAsFixed(0)} — ${_painLabel(_painLevel)}',
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: _painLevelColor(_painLevel)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _saved ? kSuccess : kPrimary,
-                      foregroundColor: Colors.white,
-                    ),
-                    icon: Icon(
-                        _saved
-                            ? Icons.check_circle_outline_rounded
-                            : Icons.save_rounded,
-                        size: 24),
-                    label: Text(
-                        _saved ? 'Saved!' : 'Save Symptoms',
-                        style: const TextStyle(fontSize: 19)),
-                    onPressed: () => setState(() => _saved = true),
-                  ),
-                ),
+                ...availableSymptoms.map((symptom) => _buildSymptomCard(symptom)),
+                const SizedBox(height: 16),
+                _buildSubmitButton(),
               ],
             ),
           ),
-
-          // ── Reminders ──────────────────────────────────────────────────
-          SectionCard(
-            title: 'Reminders',
-            icon: Icons.notifications_active_rounded,
-            iconColor: kWarning,
-            child: Column(
-              children: _reminders
-                  .map((r) => ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: kPrimary.withValues(alpha: 0.12),
-                          child: Icon(r.icon, color: kPrimary, size: 22),
-                        ),
-                        title: Text(r.text,
-                            style: const TextStyle(fontSize: 17)),
-                        trailing: Text(r.time,
-                            style: const TextStyle(
-                                fontSize: 15,
-                                color: kTextSecondary,
-                                fontWeight: FontWeight.w500)),
-                        contentPadding: EdgeInsets.zero,
-                      ))
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
+          
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Color _painLevelColor(double v) {
-    if (v <= 3) return kSuccess;
-    if (v <= 6) return kWarning;
-    return kError;
+  Widget _buildSimulationDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kPrimary.withOpacity(0.3)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<DummyPatient>(
+          value: _currentPatient,
+          isExpanded: true,
+          icon: const Icon(Icons.swap_horiz_rounded, color: kPrimary),
+          items: _dummyPatients.map((p) => DropdownMenuItem(value: p, child: Text('Simulate: ${p.name}', style: const TextStyle(fontSize: 18)))).toList(),
+          onChanged: _onPatientChanged,
+        ),
+      ),
+    );
   }
 
-  String _painLabel(double v) {
-    if (v <= 3) return 'Mild';
-    if (v <= 6) return 'Moderate';
-    return 'Severe';
+  Widget _buildGreetingCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(gradient: const LinearGradient(colors: [kPrimary, kPrimaryLight]), borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Hello, ${_currentPatient.name.split(' ')[0]} 👋', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
+        const Text("Ready to track your progress?", style: TextStyle(fontSize: 16, color: Color(0xFFBBDEFB))),
+      ]),
+    );
+  }
+
+  Widget _buildSymptomCard(String symptom) {
+    final isSelected = _selectedSymptoms.contains(symptom);
+    final severity = _symptomSeverities[symptom] ?? 0;
+    final color = _getSeverityColor(severity);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isSelected ? color : Colors.grey.withOpacity(0.3), width: isSelected ? 2 : 1),
+      ),
+      child: Column(children: [
+        CheckboxListTile(
+          title: Text(symptom, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          value: isSelected,
+          activeColor: color,
+          onChanged: (val) => _toggleSymptom(symptom, val),
+        ),
+        if (isSelected)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Slider(
+              min: 0, max: 10, divisions: 10,
+              label: '${severity.toInt()}',
+              value: severity,
+              activeColor: color,
+              onChanged: (v) => setState(() => _symptomSeverities[symptom] = v),
+            ),
+          ),
+      ]),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity, height: 60,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+        icon: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Icon(Icons.cloud_upload_rounded),
+        label: Text(_isSaving ? 'Saving...' : 'Submit Symptoms', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        onPressed: _isSaving ? null : _submitSymptoms,
+      ),
+    );
+  }
+
+  Color _getSeverityColor(double val) {
+    if (val <= 3) return kSuccess;
+    if (val <= 7) return Colors.orange;
+    return kError;
+  }
+}
+
+// ── 1. Tasks List Mock Widget
+class _TasksListMock extends StatefulWidget {
+  final String patientId;
+  const _TasksListMock({required this.patientId});
+
+  @override
+  State<_TasksListMock> createState() => _TasksListMockState();
+}
+
+class _TasksListMockState extends State<_TasksListMock> {
+  @override
+  Widget build(BuildContext context) {
+    final taskDocs = MockData.getTasksByPatient(widget.patientId);
+
+    if (taskDocs.isEmpty) {
+      return const SectionCard(title: 'Your Care Plan', icon: Icons.playlist_add_check_rounded, child: Text('No tasks assigned for today.'));
+    }
+
+    return SectionCard(
+      title: 'Your Care Plan',
+      icon: Icons.checklist_rtl_rounded,
+      iconColor: kAccent,
+      child: Column(
+        children: taskDocs.map((data) {
+          final isComp = data['status'] == 'completed';
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: CheckboxListTile(
+              title: Text(data['task_name'] ?? 'Task', style: TextStyle(fontSize: 18, decoration: isComp ? TextDecoration.lineThrough : null, color: isComp ? kTextSecondary : kTextPrimary)),
+              value: isComp,
+              activeColor: kAccent,
+              onChanged: (val) {
+                setState(() {
+                   data['status'] = (val == true ? 'completed' : 'missed');
+                });
+              },
+              secondary: Icon(isComp ? Icons.check_circle_rounded : Icons.pending_actions_rounded, color: isComp ? kSuccess : kWarning),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              tileColor: isComp ? Colors.grey.withOpacity(0.05) : Colors.white,
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }

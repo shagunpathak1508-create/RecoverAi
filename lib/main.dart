@@ -6,6 +6,7 @@ import 'screens/caregiver_dashboard.dart';
 import 'screens/doctor_dashboard.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const RecoverAIApp());
 }
 
