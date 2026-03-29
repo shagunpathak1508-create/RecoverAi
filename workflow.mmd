@@ -1,0 +1,14 @@
+sequenceDiagram
+    actor Patient
+    actor Caregiver
+    actor Doctor
+    participant Firestore as Firebase Firestore Real-time Streams
+    
+    Patient->>Firestore: Marks 'Medication' as complete
+    Firestore-->>Caregiver: Stream triggers UI rebuild (Task checked)
+    Firestore-->>Doctor: Stream triggers UI rebuild (Adherence stats update)
+    Note over Doctor, Firestore: The Relapse Risk Widget re-calculates risk
+    Doctor->>Firestore: Reviews charts & updates treatment
+    Caregiver->>Patient: Taps "Send Reminder" Widget
+    Caregiver->>Firestore: Logs Reminder Event
+    Firestore-->>Patient: Triggers UI Snackbar/Notification

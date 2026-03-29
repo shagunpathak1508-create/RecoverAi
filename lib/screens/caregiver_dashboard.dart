@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../theme.dart';
 import '../widgets/section_card.dart';
 import '../mock_data.dart';
+import '../widgets/reminder_widgets.dart';
 
 // Using a hardcoded patient (p1) for this hackathon prototype
 const String kDemoPatientId = 'p1';
@@ -62,7 +63,11 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
+
+          // ── Send Reminder ─────────────────────────────────────────
+          ReminderButton(patientId: _selectedPatientId),
+          const SizedBox(height: 16),
 
           // ── 1. Adherence & 2. Missed Tasks ───────────────────────────
           _AdherenceAndTasksWidget(patientId: _selectedPatientId),
